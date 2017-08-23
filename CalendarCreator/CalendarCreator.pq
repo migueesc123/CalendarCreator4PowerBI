@@ -1,6 +1,6 @@
 ﻿// This file contains your Data Connector logic
 section CalendarCreator;
- [DataSource.Kind="CalendarCreator", Publish="FiscalCalendarCreator.Publish"]
+ [DataSource.Kind="FiscalCalendarCreator", Publish="FiscalCalendarCreator.Publish"]
  shared FiscalCalendarCreatorFX = Value.ReplaceType(FiscalCalendarCreator.Feed, ParamsFiscal);
 
 ParamsFiscal =
@@ -10,7 +10,7 @@ ParamsFiscal =
         Documentation.FieldDescription = "Choose when your Calendar Table will start"]),
         ExampleYearEnd  as( type date meta[
         Documentation.FieldCaption = "Year-end Example",
-        Documentation.FieldDescription = "Prove an example for the day (month and day combination) when your fiscal year ends"]),
+        Documentation.FieldDescription = "Provide an example for the day (month and day combination) when your fiscal year ends"]),
         culture as( type text meta [
         Documentation.FieldCaption = "Select the Culture/Locale",
         Documentation.FieldDescription = "This will affect the columns that rely on the locale",
@@ -18,7 +18,8 @@ ParamsFiscal =
         as table
 ;
 FiscalCalendarCreator.Feed = ( InitialDate as date, ExampleYearEnd as date, culture as text) =>
-    let
+  let
+     Locale =  LanguagesAvailable(){[Language=culture]}[CiLocale String],
     StartDate= InitialDate,
     AdjustedFirstYearEnd = #date(Date.Year(StartDate), Date.Month(ExampleYearEnd),Date.Day(ExampleYearEnd)),
     FiscalStartDate = if AdjustedFirstYearEnd < StartDate then AdjustedFirstYearEnd+#duration(1,0,0,0) else Date.AddYears(AdjustedFirstYearEnd+#duration(1,0,0,0),-1),
@@ -29,14 +30,14 @@ each [FiscalStartDate= [FiscalEndDate]+#duration(1,0,0,0), FiscalEndDate= Date.A
     #"Changed Type" = Table.TransformColumnTypes(DateRanges,{{"FiscalStartDate", type date}, {"FiscalEndDate", type date}}),
     #"Inserted Year" = Table.AddColumn(#"Changed Type", "Fiscal Year", each Date.Year([FiscalEndDate]), type number),
     Custom1 = Table.AddColumn(#"Inserted Year", "FYName", each "FY"&Text.End(Text.From([Fiscal Year], "en-US"), 2), type text),
-    #"Invoked Custom Function" = Table.AddColumn(Custom1, "fxFiscal", each FiscalYear([FiscalStartDate], [FiscalEndDate], culture)),
+    #"Invoked Custom Function" = Table.AddColumn(Custom1, "fxFiscal", each FiscalYear([FiscalStartDate], [FiscalEndDate], Locale)),
     #"Expanded fxFiscal" = Table.ExpandTableColumn(#"Invoked Custom Function", "fxFiscal", {"DateKey", "FiscalMonth", "FiscalQuarter", "FiscalDay", "FiscalWeek", "Calendar Year", "Calendar Quarter", "Calendar Month", "Calendar Month Name", "Week of Calendar Year", "Day", "Day of Calendar Year", "Day Name"}, {"DateKey", "FiscalMonth", "FiscalQuarter", "FiscalDay", "FiscalWeek", "Calendar Year", "Calendar Quarter", "Calendar Month", "Calendar Month Name", "Week of Calendar Year", "Day", "Day of Calendar Year", "Day Name"}),
     FromStartDate= Table.SelectRows(#"Expanded fxFiscal", each [DateKey] >= StartDate),
 #"Changed Type1" = Table.TransformColumnTypes(FromStartDate,{{"FiscalMonth", Int64.Type}, {"FiscalQuarter", Int64.Type}, {"FiscalDay", Int64.Type}, {"FiscalWeek", Int64.Type}, {"Calendar Year", Int64.Type}, {"Calendar Quarter", Int64.Type}, {"Calendar Month", Int64.Type}, {"Week of Calendar Year", Int64.Type}, {"Day", Int64.Type}, {"Day of Calendar Year", Int64.Type}, {"Day Name", type text}, {"Calendar Month Name", type text}, {"DateKey", type date}})
 in
     #"Changed Type1";
 
-[DataSource.Kind="CalendarCreator", Publish="CalendarCreator.Publish"]
+ [DataSource.Kind="CalendarCreator", Publish="CalendarCreator.Publish"]
 shared CalendarCreatorFX = Value.ReplaceType(CalendarCreator.Feed, Params);
 
 Params =
@@ -183,6 +184,16 @@ CalendarCreator = [
         Implicit = []
     ]
 ];
+
+FiscalCalendarCreator = [
+    Authentication = [
+        // Key = [],
+        // UsernamePassword = [],
+        // Windows = [],
+        Implicit = []
+    ]
+];
+
 
 // Data Source UI publishing description
 CalendarCreator.Publish = [
