@@ -1,7 +1,7 @@
 ﻿// This file contains your Data Connector logic
 section CalendarCreator;
  [DataSource.Kind="FiscalCalendarCreator", Publish="FiscalCalendarCreator.Publish"]
- shared FiscalCalendarCreatorFX = Value.ReplaceType(FiscalCalendarCreator.Feed, ParamsFiscal);
+ shared Fiscal.CalendarCreator = Value.ReplaceType(FiscalCalendarCreator.Feed, ParamsFiscal);
 
 ParamsFiscal =
    type function (
@@ -41,7 +41,7 @@ in
     #"Changed Type1";
 
  [DataSource.Kind="CalendarCreator", Publish="CalendarCreator.Publish"]
-shared CalendarCreatorFX = Value.ReplaceType(CalendarCreator.Feed, Params);
+shared Week.CalendarCreator = Value.ReplaceType(CalendarCreator.Feed, Params);
 
 Params =
    type function (
