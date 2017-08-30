@@ -8,6 +8,9 @@ ParamsFiscal =
         InitialDate as ( type date meta[
         Documentation.FieldCaption = "Initial date",
         Documentation.FieldDescription = "Choose when your Calendar Table will start"]),
+        EndDate as ( type date meta[
+        Documentation.FieldCaption = "End date",
+        Documentation.FieldDescription = "Choose the last date of your Calendar Table"]),
         ExampleYearEnd  as( type date meta[
         Documentation.FieldCaption = "Year-end Example",
         Documentation.FieldDescription = "Provide an example for the day (month and day combination) when your fiscal year ends"]),
@@ -17,7 +20,7 @@ ParamsFiscal =
         Documentation.AllowedValues = Table.Column(LanguagesAvailable(), "Language") ])) 
         as table
 ;
-FiscalCalendarCreator.Feed = ( InitialDate as date, ExampleYearEnd as date, culture as text) =>
+FiscalCalendarCreator.Feed = ( InitialDate as date, EndDate as date, ExampleYearEnd as date, culture as text) =>
   let
      Locale =  LanguagesAvailable(){[Language=culture]}[CiLocale String],
     StartDate= InitialDate,
@@ -25,14 +28,14 @@ FiscalCalendarCreator.Feed = ( InitialDate as date, ExampleYearEnd as date, cult
     FiscalStartDate = if AdjustedFirstYearEnd < StartDate then AdjustedFirstYearEnd+#duration(1,0,0,0) else Date.AddYears(AdjustedFirstYearEnd+#duration(1,0,0,0),-1),
     DateRanges = Table.FromRecords(List.Generate( ()=>
 [FiscalStartDate= FiscalStartDate, FiscalEndDate=AdjustedFirstYearEnd],
-each [FiscalStartDate] <= Date.EndOfYear(Date.From(DateTime.LocalNow())),
+each [FiscalStartDate] <= EndDate,
 each [FiscalStartDate= [FiscalEndDate]+#duration(1,0,0,0), FiscalEndDate= Date.AddYears([FiscalEndDate],1)])),
     #"Changed Type" = Table.TransformColumnTypes(DateRanges,{{"FiscalStartDate", type date}, {"FiscalEndDate", type date}}),
     #"Inserted Year" = Table.AddColumn(#"Changed Type", "Fiscal Year", each Date.Year([FiscalEndDate]), type number),
     Custom1 = Table.AddColumn(#"Inserted Year", "FYName", each "FY"&Text.End(Text.From([Fiscal Year], "en-US"), 2), type text),
     #"Invoked Custom Function" = Table.AddColumn(Custom1, "fxFiscal", each FiscalYear([FiscalStartDate], [FiscalEndDate], Locale)),
     #"Expanded fxFiscal" = Table.ExpandTableColumn(#"Invoked Custom Function", "fxFiscal", {"DateKey", "FiscalMonth", "FiscalQuarter", "FiscalDay", "FiscalWeek", "Calendar Year", "Calendar Quarter", "Calendar Month", "Calendar Month Name", "Week of Calendar Year", "Day", "Day of Calendar Year", "Day Name"}, {"DateKey", "FiscalMonth", "FiscalQuarter", "FiscalDay", "FiscalWeek", "Calendar Year", "Calendar Quarter", "Calendar Month", "Calendar Month Name", "Week of Calendar Year", "Day", "Day of Calendar Year", "Day Name"}),
-    FromStartDate= Table.SelectRows(#"Expanded fxFiscal", each [DateKey] >= StartDate),
+    FromStartDate= Table.SelectRows(#"Expanded fxFiscal", each [DateKey] >= StartDate and [DateKey] <=  EndDate),
 #"Changed Type1" = Table.TransformColumnTypes(FromStartDate,{{"FiscalMonth", Int64.Type}, {"FiscalQuarter", Int64.Type}, {"FiscalDay", Int64.Type}, {"FiscalWeek", Int64.Type}, {"Calendar Year", Int64.Type}, {"Calendar Quarter", Int64.Type}, {"Calendar Month", Int64.Type}, {"Week of Calendar Year", Int64.Type}, {"Day", Int64.Type}, {"Day of Calendar Year", Int64.Type}, {"Day Name", type text}, {"Calendar Month Name", type text}, {"DateKey", type date}})
 in
     #"Changed Type1";
@@ -45,6 +48,9 @@ Params =
         StartWeekOfYear as ( type date meta[
         Documentation.FieldCaption = "First Date of Week-Year",
         Documentation.FieldDescription = "First Date of the First Week of the First Year of your Calendar"]),
+        EndDate as ( type date meta[
+        Documentation.FieldCaption = "End date",
+        Documentation.FieldDescription = "Choose the last date of your Calendar Table"]),
         calendartype  as( type text meta[
         Documentation.FieldCaption = "Choose your Calendar Type",
         Documentation.FieldDescription = "Please select from the available Calendar Type options",
@@ -56,9 +62,9 @@ Params =
         as table
 ;
 
-CalendarCreator.Feed = (StartWeekOfYear as date, calendartype as text, culture as text) => 
+CalendarCreator.Feed = (StartWeekOfYear as date, EndDate as date, calendartype as text, culture as text) => 
  let
-    MaxDate = Date.EndOfYear(Date.From(DateTime.LocalNow())),
+    MaxDate = EndDate,
     Locale =  LanguagesAvailable(){[Language=culture]}[CiLocale String],
     Source = List.Generate( ()=>
  [Result= CalendarTable(StartWeekOfYear, calendartype, Locale), FirstWeekOfYear = StartWeekOfYear],
