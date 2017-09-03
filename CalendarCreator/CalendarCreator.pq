@@ -139,8 +139,8 @@ in
     #"Reordered Columns";
 
  LanguagesAvailable = () as table =>
-     let
-    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("XVLRbqMwEPyVKE+tVD4iJBBoEBdhyElX9WET9hIrxO4Zu5H69Wd73Op6T7Az652dsV9elqvfRl6J1Lx8Wq7K5euThwwd5SnUXaxzmv84Xjzg++iJYgDBExk3S1IeywtgbjqTSdA2QmuyNEVgvQJwkYpnPzH8UBj4q8rW7XeuJ3knlcj+J0ijyWJ2hd3WH3y6hMkilhtScg71BkobZyPdNrEs1Hny/OJha5jsIjfSkowaRZtt8+89g5KWx4WwZHlOPQNkitlqhT2KPiIlsdF+b4+UP4BIlXYpawCGVVym7LKy+wfyOZCiUcKtZ1NMWza3qLFBtH5pvgZJmKn4aPgeogBdOfWVfIULqk/+htQYL7PG6rUatQ8YbTUyr/39JABunumNFNw8Y5ed9omFjh3cNWTfcaQ5AJD24iiF0mBMq82dz4BanNvrCaHsm1Qb684OWvv+P8y/OUMfcnqMZJYjtU7fPoU6TO3cnBx1MC7YHAEInBGTfqcQnth91ZyGCKwi3j4fTyGyAmmJO4/ABGz2F5K+6itUzlxB95AZrsY/KIwdoHSQbBXd4PDgn8LrXw==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type text) meta [Serialized.Text = true]) in type table [Language = _t, #"CiLocale String" = _t]),
+    let
+    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("XVJdb6MwEPwrUZ5aqfwISCDQIBphyElX9WETfIkVYrf+aKT++rM9bnW5J9iZ9e7O7L6+LvM/WlyIpFk+LfNq+fbkIU0HcQxxH+OCzIfjiwd8Hz1RjiD4TNoZQdJjRQnMzSfSCdpEaEWW5giscgBnIbnxFcMPhYK/62zV3XMDiRvJRA6/QGpFFrVrzLb64sdzqMxiuCYpTIjX6LR2NtJdG8NSnmbPLx5yZ6ymWcTmZZfl4z2/0ZzsotDCkpApZ1Pc54xSWD4tmCXLTcoZMUZprJKYsxwiUhHXyuvySPUCRMg0a9UA0FzGYas+q/p/IO8TSZoE3PBssnHD9TX2WMN6PzS/hJYQW/OD5rdgFejayZ/N1NDbHP0G5RSX3WD0Rk7KLwBpDXbS2GBVBKDmmd5JQs0zZtkq71jI2EJdS/YTT9o9AGHPjpIpLcp0St/4CVCHdzs1w5Rdm2Jt3cmh1274D/M3qelLzI+RzAq41qvrd6MeVXtnkqIewhnXBwAMb9isPimYx7Y/MU9FGEZh79/HVbKshFvsxidgDDKHMwkfDTUipy+gB7QZL9ofFMqO6LQX3Eq6QuHen8LbXw==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type text) meta [Serialized.Text = true]) in type table [Language = _t, #"CiLocale String" = _t]),
     #"Changed Type" = Table.TransformColumnTypes(Source,{{"Language", type text}, {"CiLocale String", type text}}),
     #"Lowercased Text" = Table.TransformColumns(#"Changed Type",{{"CiLocale String", Text.Lower}})
 in
