@@ -16,7 +16,7 @@ Please use the [issues](https://github.com/migueesc123/CalendarCreator4PowerBI/i
 # Features Coming soon
 - [x]  Define a custom end-date for your Calendar
 - [ ]  New button to output a Custom Calendar using the ISO 8601 rules
-- [ ]  New button to output a Custom Calendar using the logic of: [End the fiscal year on the last [weekday] (like saturday) of the month ](https://en.wikipedia.org/wiki/Accounting_period#Last_Saturday_of_the_month_at_fiscal_year_end)
+- [x]  New button to output a Custom Calendar using the logic of: [End the fiscal year on the last [weekday] (like saturday) of the month ](https://en.wikipedia.org/wiki/Accounting_period#Last_Saturday_of_the_month_at_fiscal_year_end)
 - [ ]  New button to output a Custom Calendar using the logic of: [End the fiscal year in the [weekday] (like saturday) nearest to the end of the month](https://en.wikipedia.org/wiki/Accounting_period#Saturday_nearest_the_end_of_month)
 - [ ]  New button to output a Custom Calendar using the logic of: [End the fiscal year on the Last Date of the Month (specific for the scenario in SA)](https://en.wikipedia.org/wiki/Fiscal_year#South_Africa)
 - [ ]  UI Multilanguage support
