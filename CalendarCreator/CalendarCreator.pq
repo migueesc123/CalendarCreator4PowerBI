@@ -5,7 +5,7 @@ shared  Fiscal5253.CalendarCreator = Value.ReplaceType(Fiscal5253CalendarCreator
 
 Fiscal5253CalendarCreator.Feed = (StartDate as date, EndDate as date, Month as text, Weekday as text, calendartype as text, culture as text)=>
 let
-       month= Months(){[WeekDay=Month]}[MonthNumber],
+       month= Months(){[Month=Month]}[MonthNumber],
        DayOfWeek= WeekDays(){[WeekDay=Weekday]}[DayNumber],
       Locale =  LanguagesAvailable(){[Language=culture]}[CiLocale String],
   CalendarSet1= CalendarTypes(){[Type=calendartype]}[Set1],
