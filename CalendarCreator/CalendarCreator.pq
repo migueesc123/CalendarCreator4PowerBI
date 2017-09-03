@@ -3,7 +3,7 @@ section CalendarCreator;
  [DataSource.Kind="Fiscal5253CalendarCreator", Publish="Fiscal5253CalendarCreator.Publish"]
 shared  Fiscal5253.CalendarCreator = Value.ReplaceType(Fiscal5253CalendarCreator.Feed, ParamsFiscal5253);
 
-Fiscal5253CalendarCreator.Feed = (StartDate as date, EndDate as date, Month as text, Weekday as text, calendartype as text, culture as text)=>
+Fiscal5253CalendarCreator.Feed = (StartDate as date, EndDate as date, Month as text, endtype as text, Weekday as text, calendartype as text, culture as text)=>
 let
        month= Months(){[Month=Month]}[MonthNumber],
        DayOfWeek= WeekDays(){[WeekDay=Weekday]}[DayNumber],
@@ -15,7 +15,7 @@ let
 Origen = List.Generate( ()=>   
  [Result= StartDate5253(Year,month,DayOfWeek), Year=AdjustedYearStart, StartDate=Result, EndDate=null], 
 each [StartDate]<=EndDate, 
-each [Result= StartDate5253(Year,month,DayOfWeek), Year=[Year]+1,StartDate=[Result],EndDate=StartDate5253(Year,Month,DayOfWeek)-#duration(1,0,0,0)]),
+each [Result= StartDate5253(Year,month,DayOfWeek), Year=[Year]+1,StartDate=[Result],EndDate=StartDate5253(Year,month,DayOfWeek)-#duration(1,0,0,0)]),
     #"Convertida en tabla" = Table.FromList(Origen, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
     #"Se expandió Column1" = Table.ExpandRecordColumn(#"Convertida en tabla", "Column1", {"StartDate", "EndDate"}, {"StartDate", "EndDate"}),
     #"Filas filtradas" = Table.SelectRows(#"Se expandió Column1", each ([EndDate] <> null)),
@@ -93,6 +93,10 @@ ParamsFiscal5253 =
         Documentation.FieldCaption = "Fiscal Year Month End",
         Documentation.FieldDescription = "Select the Month when your Fiscal Year ends",
         Documentation.AllowedValues = Table.Column(Months(), "Month") ]),
+        endtype as( type text meta [
+        Documentation.FieldCaption = "Last or Nearest?",
+        Documentation.FieldDescription = "Will your calendar end on the last weekday of the end month or on the nearest weekday to the end of the month?",
+        Documentation.AllowedValues = {"Last"}]),
         Weekday as( type text meta [
         Documentation.FieldCaption = "Start of your Week",
         Documentation.FieldDescription = "Select on what day your week starts",
