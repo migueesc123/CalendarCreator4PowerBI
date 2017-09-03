@@ -96,7 +96,7 @@ ParamsFiscal5253 =
         endtype as( type text meta [
         Documentation.FieldCaption = "Last or Nearest?",
         Documentation.FieldDescription = "Will your calendar end on the last weekday of the end month or on the nearest weekday to the end of the month?",
-        Documentation.AllowedValues = {"Last"}]),
+        Documentation.AllowedValues = {"Last weekday", "Nearest Weekday to EndDate", "Last Date of Month"}]),
         Weekday as( type text meta [
         Documentation.FieldCaption = "Start of your Week",
         Documentation.FieldDescription = "Select on what day your week starts",
