@@ -1,5 +1,113 @@
 ﻿// This file contains your Data Connector logic
 section CalendarCreator;
+ [DataSource.Kind="Fiscal5253CalendarCreator", Publish="Fiscal5253CalendarCreator.Publish"]
+shared  Fiscal5253.CalendarCreator = Value.ReplaceType(Fiscal5253CalendarCreator.Feed, ParamsFiscal5253);
+
+Fiscal5253CalendarCreator.Feed = (StartDate as date, EndDate as date, Month as text, Weekday as text, calendartype as text, culture as text)=>
+let
+       month= Months(){[WeekDay=Month]}[MonthNumber],
+       DayOfWeek= WeekDays(){[WeekDay=Weekday]}[DayNumber],
+      Locale =  LanguagesAvailable(){[Language=culture]}[CiLocale String],
+  CalendarSet1= CalendarTypes(){[Type=calendartype]}[Set1],
+    CalendarSet2= CalendarTypes(){[Type=calendartype]}[Set2],
+    CalendarSet3= CalendarTypes(){[Type=calendartype]}[Set3],
+ AdjustedYearStart = Date.Year(StartDate)-1,
+Origen = List.Generate( ()=>   
+ [Result= StartDate5253(Year,month,DayOfWeek), Year=AdjustedYearStart, StartDate=Result, EndDate=null], 
+each [StartDate]<=EndDate, 
+each [Result= StartDate5253(Year,month,DayOfWeek), Year=[Year]+1,StartDate=[Result],EndDate=StartDate5253(Year,Month,DayOfWeek)-#duration(1,0,0,0)]),
+    #"Convertida en tabla" = Table.FromList(Origen, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Se expandió Column1" = Table.ExpandRecordColumn(#"Convertida en tabla", "Column1", {"StartDate", "EndDate"}, {"StartDate", "EndDate"}),
+    #"Filas filtradas" = Table.SelectRows(#"Se expandió Column1", each ([EndDate] <> null)),
+    #"Resta de fecha insertada" = Table.AddColumn(#"Filas filtradas", "TotalDays", each Duration.Days( [EndDate] - [StartDate]), Int64.Type),
+    #"Tipo cambiado" = Table.TransformColumnTypes(#"Resta de fecha insertada",{{"StartDate", type date}, {"EndDate", type date}}),
+    #"Año insertado" = Table.AddColumn(#"Tipo cambiado", "Accounting Year", each Date.Year([EndDate]), type number),
+    #"División entera insertada" = Table.AddColumn(#"Año insertado", "Total Weeks in Year", each Number.IntegerDivide([TotalDays], 7)+1, Int64.Type),
+    #"Personalizada agregada" = Table.AddColumn(#"División entera insertada", "Quarter Start Date", each Table.FromList(List.Dates([StartDate], 
+4,
+#duration(91,0,0,0)) , Splitter.SplitByNothing(), null, null, ExtraValues.Error)),
+    #"Personalizada agregada1" = Table.AddColumn(#"Personalizada agregada", "Personalizado", each Table.AddIndexColumn([Quarter Start Date], "Quarter", 1, 1)),
+    #"Columnas quitadas" = Table.RemoveColumns(#"Personalizada agregada1",{"Quarter Start Date"}),
+    #"Se expandió Personalizado" = Table.ExpandTableColumn(#"Columnas quitadas", "Personalizado", {"Column1", "Quarter"}, {"Column1", "Quarter"}),
+    #"Columnas con nombre cambiado" = Table.RenameColumns(#"Se expandió Personalizado",{{"Column1", "StartOfQuarter"}}),
+    #"Personalizada agregada2" = Table.AddColumn(#"Columnas con nombre cambiado", "EndOfQuarter", each if [Quarter] = 4 then [EndDate] else [StartOfQuarter]+#duration(90,0,0,0)),
+    #"Personalizada agregada3" = Table.AddColumn(#"Personalizada agregada2", "Personalizado", each Table.FromRecords({ [Set=1, Dates=Table.FromList(List.Dates( [StartOfQuarter], CalendarSet1, #duration(7,0,0,0)),  Splitter.SplitByNothing(), null, null, ExtraValues.Error)],
+  [Set=2, Dates= Table.FromList(List.Dates( [StartOfQuarter]+#duration(7*CalendarSet1,0,0,0), CalendarSet2, #duration(7,0,0,0)),  Splitter.SplitByNothing(), null, null, ExtraValues.Error)],
+  [Set=3, Dates= Table.FromList(List.Dates( [StartOfQuarter]+#duration(7*(CalendarSet1+CalendarSet2),0,0,0),  if [Quarter]=4 then [Total Weeks in Year]-52+CalendarSet3 else CalendarSet3, #duration(7,0,0,0)),  Splitter.SplitByNothing(), null, null, ExtraValues.Error)] 
+})),
+    #"Se expandió Personalizado1" = Table.ExpandTableColumn(#"Personalizada agregada3", "Personalizado", {"Set", "Dates"}, {"Set", "Dates"}),
+    #"Índice agregado" = Table.AddIndexColumn(#"Se expandió Personalizado1", "Índice", 1, 1),
+    #"Módulo insertado" = Table.AddColumn(#"Índice agregado", "MonthNumber", each Number.Mod([Índice]-1, 12)+1, type number),
+    #"Columnas quitadas1" = Table.RemoveColumns(#"Módulo insertado",{"Índice"}),
+    #"Personalizada agregada4" = Table.AddColumn(#"Columnas quitadas1", "Personalizado", each Table.AddIndexColumn( 
+Table.TransformColumnTypes([Dates],{{"Column1", Date.Type}}), "WeekOfMonth", 1, 1)),
+    #"Columnas quitadas2" = Table.RemoveColumns(#"Personalizada agregada4",{"Dates"}),
+    #"Columna duplicada" = Table.DuplicateColumn(#"Columnas quitadas2", "Personalizado", "Personalizado - Copia"),
+    StartOfMonth = Table.AggregateTableColumn(#"Columna duplicada", "Personalizado - Copia", {{"Column1", List.Min, "StartOfMonth"}, {"Column1", List.Max, "LastWeekOfMonth"}}),
+    EndOfMonth = Table.AddColumn(StartOfMonth, "EndOfMonth", each [LastWeekOfMonth]+#duration(6,0,0,0), Date.Type),
+    #"Columnas quitadas3" = Table.RemoveColumns(EndOfMonth,{"LastWeekOfMonth"}),
+    #"Se expandió Personalizado2" = Table.ExpandTableColumn(#"Columnas quitadas3", "Personalizado", {"Column1", "WeekOfMonth"}, {"Column1", "WeekOfMonth"}),
+    #"Columnas con nombre cambiado1" = Table.RenameColumns(#"Se expandió Personalizado2",{{"Column1", "StartOfWeek"}}),
+    #"Filas ordenadas" = Table.Sort(#"Columnas con nombre cambiado1",{{"StartOfWeek", Order.Ascending}}),
+    #"Filas agrupadas" = Table.Group(#"Filas ordenadas", {"Accounting Year"}, {{"AllRows", each _, type table}}),
+    #"Personalizada agregada5" = Table.AddColumn(#"Filas agrupadas", "Personalizado", each Table.AddIndexColumn([AllRows], "WeekOfYear", 1, 1)),
+    #"Columnas quitadas4" = Table.RemoveColumns(#"Personalizada agregada5",{"AllRows"}),
+    #"Se expandió Personalizado3" = Table.ExpandTableColumn(#"Columnas quitadas4", "Personalizado", {"StartDate", "EndDate", "TotalDays", "Total Weeks in Year", "StartOfQuarter", "Quarter", "EndOfQuarter", "Set", "MonthNumber", "StartOfWeek", "WeekOfMonth", "StartOfMonth", "EndOfMonth", "WeekOfYear"}, {"StartDate", "EndDate", "TotalDays", "Total Weeks in Year", "StartOfQuarter", "Quarter", "EndOfQuarter", "Set", "MonthNumber", "StartOfWeek", "WeekOfMonth", "StartOfMonth", "EndOfMonth", "WeekOfYear"}),
+    #"Personalizada agregada6" = Table.AddColumn(#"Se expandió Personalizado3", "EndOfWeek", each [StartOfWeek]+#duration(6,0,0,0)),
+    #"Personalizada agregada7" = Table.AddColumn(#"Personalizada agregada6", "DateKey", each Table.AddIndexColumn( 
+Table.FromList( List.Dates([StartOfWeek],7,#duration(1,0,0,0)), Splitter.SplitByNothing(), null, null, ExtraValues.Error),"DayOfWeek", 1, 1)),
+    #"Se expandió DateKey" = Table.ExpandTableColumn(#"Personalizada agregada7", "DateKey", {"Column1", "DayOfWeek"}, {"DateKey", "DayOfWeek"}),
+    #"Filas agrupadas1" = Table.Group(#"Se expandió DateKey", {"Accounting Year"}, {{"AllRows", each _, type table}}),
+    #"Personalizada agregada8" = Table.AddColumn(#"Filas agrupadas1", "DayOfYear", each Table.AddIndexColumn([AllRows], "DayOfYear", 1, 1)),
+    #"Columnas quitadas5" = Table.RemoveColumns(#"Personalizada agregada8",{"AllRows"}),
+    #"Se expandió DayOfYear" = Table.ExpandTableColumn(#"Columnas quitadas5", "DayOfYear", {"StartDate", "EndDate", "TotalDays", "Total Weeks in Year", "StartOfQuarter", "Quarter", "EndOfQuarter", "Set", "MonthNumber", "StartOfWeek", "WeekOfMonth", "StartOfMonth", "EndOfMonth", "WeekOfYear", "EndOfWeek", "DateKey", "DayOfWeek", "DayOfYear"}, {"StartDate", "EndDate", "TotalDays", "Total Weeks in Year", "StartOfQuarter", "Quarter", "EndOfQuarter", "Set", "MonthNumber", "StartOfWeek", "WeekOfMonth", "StartOfMonth", "EndOfMonth", "WeekOfYear", "EndOfWeek", "DateKey", "DayOfWeek", "DayOfYear"}),
+    #"Columnas con nombre cambiado2" = Table.RenameColumns(#"Se expandió DayOfYear",{{"StartDate", "YearStartDate"}, {"EndDate", "YearEndDate"}, {"TotalDays", "TotalDaysInYear"}, {"Total Weeks in Year", "TotalWeeksInYear"}, {"Quarter", "QuarterOfYear"}}),
+    #"Columnas reordenadas" = Table.ReorderColumns(#"Columnas con nombre cambiado2",{"DateKey", "Accounting Year", "YearStartDate", "YearEndDate", "TotalDaysInYear", "TotalWeeksInYear", "StartOfQuarter", "QuarterOfYear", "EndOfQuarter", "Set", "MonthNumber", "StartOfMonth", "EndOfMonth", "StartOfWeek", "EndOfWeek", "DayOfYear", "WeekOfYear", "WeekOfMonth", "DayOfWeek"}),
+    #"Año insertado1" = Table.AddColumn(#"Columnas reordenadas", "CalendarYear", each Date.Year([DateKey]), type number),
+    #"Mes insertado" = Table.AddColumn(#"Año insertado1", "Mes", each Date.Month([DateKey]), type number),
+    #"Columnas con nombre cambiado3" = Table.RenameColumns(#"Mes insertado",{{"Mes", "CalendarMonth"}}),
+    #"Nombre del mes insertado" = Table.AddColumn(#"Columnas con nombre cambiado3", "CalendarMonthName", each Date.MonthName([DateKey], Locale), type text),
+    #"Nombre del día insertado" = Table.AddColumn(#"Nombre del mes insertado", "WeekDayName", each Date.DayOfWeekName([DateKey],Locale), type text),
+    DateISO = Table.AddColumn(#"Nombre del día insertado"  , "DateISO", each Date.ToText([DateKey], "yyyy-MM-dd"), type text),
+    DateInt = Table.AddColumn(DateISO, "DateInt", each Date.Year([DateKey]) * 10000 + Date.Month([DateKey]) * 100 + Date.Day([DateKey]), type number),
+    DateLong = Table.AddColumn(DateInt, "DateLong", each Date.ToText([DateKey], "MMMM dd, yyyy",Locale), type text),
+    DateMedium = Table.AddColumn(DateLong, "DateMedium", each Date.ToText([DateKey], "MMM dd, yyyy",Locale), type text),
+    Day_Long = Table.AddColumn(DateMedium, "Day_Long", each Date.ToText([DateKey], "dddd",Locale), type text),
+    Day_Short = Table.AddColumn(Day_Long, "Day_Short", each Date.ToText([DateKey], "ddd",Locale), type text),
+    #"Columnas reordenadas1" = Table.ReorderColumns(Day_Short,{"DateKey", "Accounting Year", "YearStartDate", "YearEndDate", "TotalDaysInYear", "TotalWeeksInYear", "StartOfQuarter", "EndOfQuarter", "QuarterOfYear", "Set", "MonthNumber", "StartOfMonth", "EndOfMonth", "StartOfWeek", "EndOfWeek", "DayOfYear", "WeekOfYear", "WeekOfMonth", "DayOfWeek", "CalendarYear", "CalendarMonth", "CalendarMonthName", "WeekDayName", "DateISO", "DateInt", "DateLong", "DateMedium", "Day_Long", "Day_Short"}),
+    #"Tipo cambiado1" = Table.TransformColumnTypes(#"Columnas reordenadas1",{{"DayOfWeek", Int64.Type}, {"WeekOfMonth", Int64.Type}, {"WeekOfYear", Int64.Type}, {"DayOfYear", Int64.Type}, {"EndOfWeek", type date}, {"StartOfWeek", type date}, {"EndOfMonth", type date}, {"StartOfMonth", type date}, {"MonthNumber", Int64.Type}, {"Set", Int64.Type}, {"QuarterOfYear", Int64.Type}, {"EndOfQuarter", type date}, {"StartOfQuarter", type date}, {"YearEndDate", type date}, {"YearStartDate", type date}, {"DateKey", type date}, {"TotalDaysInYear", Int64.Type}, {"TotalWeeksInYear", Int64.Type}}),
+    #"Columnas quitadas6" = Table.RemoveColumns(#"Tipo cambiado1",{"Set"}),
+    Filter= Table.SelectRows(#"Columnas quitadas6", each [DateKey] >= StartDate and [DateKey] <= EndDate)
+in
+    Filter;
+
+ParamsFiscal5253 =
+   type function (
+        InitialDate as ( type date meta[
+        Documentation.FieldCaption = "Initial date",
+        Documentation.FieldDescription = "Choose when your Calendar Table will start"]),
+        EndDate as ( type date meta[
+        Documentation.FieldCaption = "End date",
+        Documentation.FieldDescription = "Choose the last date of your Calendar Table"]),
+        Month as( type text meta [
+        Documentation.FieldCaption = "Fiscal Year Month End",
+        Documentation.FieldDescription = "Select the Month when your Fiscal Year ends",
+        Documentation.AllowedValues = Table.Column(Months(), "Month") ]),
+        Weekday as( type text meta [
+        Documentation.FieldCaption = "Start of your Week",
+        Documentation.FieldDescription = "Select on what day your week starts",
+        Documentation.AllowedValues = Table.Column(WeekDays(), "WeekDay") ]),
+        calendartype  as( type text meta[
+        Documentation.FieldCaption = "Choose your Calendar Type",
+        Documentation.FieldDescription = "Please select from the available Calendar Type options",
+        Documentation.AllowedValues = Table.Column(CalendarTypes(),"Type") ]),
+        culture as( type text meta [
+        Documentation.FieldCaption = "Select the Culture/Locale",
+        Documentation.FieldDescription = "This will affect the columns that rely on the locale",
+        Documentation.AllowedValues = Table.Column(LanguagesAvailable(), "Language") ])) 
+        as table
+;
+
  [DataSource.Kind="FiscalCalendarCreator", Publish="FiscalCalendarCreator.Publish"]
  shared Fiscal.CalendarCreator = Value.ReplaceType(FiscalCalendarCreator.Feed, ParamsFiscal);
 
@@ -11,9 +119,10 @@ ParamsFiscal =
         EndDate as ( type date meta[
         Documentation.FieldCaption = "End date",
         Documentation.FieldDescription = "Choose the last date of your Calendar Table"]),
-        ExampleYearEnd  as( type date meta[
-        Documentation.FieldCaption = "Year-end Example",
-        Documentation.FieldDescription = "Provide an example for the day (month and day combination) when your fiscal year ends"]),
+        calendartype  as( type text meta[
+        Documentation.FieldCaption = "Choose your Calendar Type",
+        Documentation.FieldDescription = "Please select from the available Calendar Type options",
+        Documentation.AllowedValues = Table.Column(CalendarTypes(),"Type") ]),
         culture as( type text meta [
         Documentation.FieldCaption = "Select the Culture/Locale",
         Documentation.FieldDescription = "This will affect the columns that rely on the locale",
@@ -104,7 +213,7 @@ let
 })),
     ExpandingWeekSets = Table.ExpandTableColumn(WeekSets, "StartOfWeek", {"Set", "Dates"}, {"Set", "Dates"}),
     MonthNumber = Table.AddIndexColumn(ExpandingWeekSets, "MonthOfYear", 1, 1),
-    MonthOfQuarter = Table.AddColumn(MonthNumber, "MonthOfQuarter", each Number.Mod([MonthOfYear]-1, 4)+1, type number),
+    MonthOfQuarter = Table.AddColumn(MonthNumber, "MonthOfQuarter", each Number.Mod([MonthOfYear]-1, 3)+1, type number),
     WeekOfMonth = Table.AddColumn(MonthOfQuarter, "Custom.1", each Table.AddIndexColumn( 
 Table.TransformColumnTypes([Dates],{{"Column1", Date.Type}}), "WeekOfMonth", 1, 1)),
     #"Removing UnnecesaryColumns" = Table.RemoveColumns(WeekOfMonth,{"Dates"}),
@@ -146,6 +255,20 @@ in
 in
     #"Lowercased Text";
 
+WeekDays = () as table =>
+    let
+    Origen = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i45W8s3PS0msVNJRMlSK1YlWCilNLYbwjcD88NSUPJiIMURFRmkRVMAELOBWlAnhmoK5wYklpUUQATOIQCnUBgOl2FgA", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type text) meta [Serialized.Text = true]) in type table [WeekDay = _t, DayNumber = _t]),
+    #"Tipo cambiado" = Table.TransformColumnTypes(Origen,{{"WeekDay", type text}, {"DayNumber", Int64.Type}})
+in
+    #"Tipo cambiado";
+
+ Months= () as table =>
+let
+    Origen = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i45W8krMK00sqlTSUTJUitWJVnJLTSqCChiBBXwTi5IzgDxjMM+xoCgzB8gzgcqB1JmC2V6lealAjhmUkwOSMYfoKU0vLS4Bci3A3ODUgpLU3KTUIqCIJVjEP7kkH8I3NAAL+OWXwVQYQpzlkpoMFwG6KxYA", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type text) meta [Serialized.Text = true]) in type table [Month = _t, MonthNumber = _t]),
+    #"Tipo cambiado" = Table.TransformColumnTypes(Origen,{{"Month", type text}, {"MonthNumber", Int64.Type}})
+in
+    #"Tipo cambiado";
+
 CalendarTypes= () as table =>
     let
     Source = Table.FromRecords({
@@ -155,6 +278,17 @@ CalendarTypes= () as table =>
     #"Changed Type" = Table.TransformColumnTypes(Source,{{"Type", type text}, {"Set1", Int64.Type}, {"Set2", Int64.Type}, {"Set3", Int64.Type}})
 in
     #"Changed Type";
+
+StartDate5253 = (Year,Month,Weekday) =>
+let
+    Personalizado1 = List.Dates(#date(Year,Month,1), Number.From( Date.EndOfMonth(#date(Year,Month,1))) - Number.From(#date(Year,Month,1))+1, #duration(1,0,0,0)),
+    #"Convertida en tabla" = Table.FromList(Personalizado1, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Día de la semana insertado" = Table.AddColumn(#"Convertida en tabla", "Día de la semana", each Date.DayOfWeek([Column1], Weekday), type number),
+#"Filas filtradas" = Table.SelectRows(#"Día de la semana insertado", each [Día de la semana] = 6),
+ #"Conservar las últimas filas" = Table.LastN(#"Filas filtradas", 1),
+    CalendarStart = #"Conservar las últimas filas"{0}[Column1]+#duration(1,0,0,0)   
+in
+CalendarStart;
 
 FiscalYear = (StartDate as date, EndDate as date, culture as text) =>
  let
@@ -200,6 +334,15 @@ FiscalCalendarCreator = [
     ]
 ];
 
+Fiscal5253CalendarCreator = [
+    Authentication = [
+        // Key = [],
+        // UsernamePassword = [],
+        // Windows = [],
+        Implicit = []
+    ]
+];
+
 
 // Data Source UI publishing description
 CalendarCreator.Publish = [
@@ -215,6 +358,15 @@ FiscalCalendarCreator.Publish = [
     Beta = true,
     Category = "Other",
     ButtonText = { "Fiscal Calendar Creator", Extension.LoadString("ButtonHelp") },
+    LearnMoreUrl = "https://powerbi.microsoft.com/",
+    SourceImage = CalendarCreator.Icons,
+    SourceTypeImage = CalendarCreator.Icons
+];
+
+Fiscal5253CalendarCreator.Publish = [
+    Beta = true,
+    Category = "Other",
+    ButtonText = { "Fiscal 53-53 Weeks Calendar Creator", Extension.LoadString("ButtonHelp") },
     LearnMoreUrl = "https://powerbi.microsoft.com/",
     SourceImage = CalendarCreator.Icons,
     SourceTypeImage = CalendarCreator.Icons
