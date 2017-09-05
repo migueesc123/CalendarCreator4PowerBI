@@ -96,7 +96,7 @@ ParamsFiscal5253 =
         endtype as( type text meta [
         Documentation.FieldCaption = "Last or Nearest?",
         Documentation.FieldDescription = "Will your calendar end on the last weekday of the end month or on the nearest weekday to the end of the month?",
-        Documentation.AllowedValues = {"Last weekday", "Nearest Weekday to EndDate", "Last Date of Month"}]),
+        Documentation.AllowedValues = {"Last weekday", "Nearest Weekday to EndDate"}]),
         Weekday as( type text meta [
         Documentation.FieldCaption = "Start of your Week",
         Documentation.FieldDescription = "Select on what day your week starts",
@@ -123,10 +123,9 @@ ParamsFiscal =
         EndDate as ( type date meta[
         Documentation.FieldCaption = "End date",
         Documentation.FieldDescription = "Choose the last date of your Calendar Table"]),
-        calendartype  as( type text meta[
-        Documentation.FieldCaption = "Choose your Calendar Type",
-        Documentation.FieldDescription = "Please select from the available Calendar Type options",
-        Documentation.AllowedValues = Table.Column(CalendarTypes(),"Type") ]),
+       ExampleYearEnd  as( type date meta[
+        Documentation.FieldCaption = "Year-end Example",
+        Documentation.FieldDescription = "Provide an example for the day (month and day combination) when your fiscal year ends"]),
         culture as( type text meta [
         Documentation.FieldCaption = "Select the Culture/Locale",
         Documentation.FieldDescription = "This will affect the columns that rely on the locale",
@@ -370,7 +369,7 @@ FiscalCalendarCreator.Publish = [
 Fiscal5253CalendarCreator.Publish = [
     Beta = true,
     Category = "Other",
-    ButtonText = { "Fiscal 53-53 Weeks Calendar Creator", Extension.LoadString("ButtonHelp") },
+    ButtonText = { "Fiscal 52-53 Weeks Calendar Creator", Extension.LoadString("ButtonHelp") },
     LearnMoreUrl = "https://powerbi.microsoft.com/",
     SourceImage = CalendarCreator.Icons,
     SourceTypeImage = CalendarCreator.Icons
